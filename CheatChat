@@ -1,0 +1,86 @@
+import socket
+from threading import Thread
+from datetime import datetime
+
+print("Willkommen im Cheat-Chat")
+print("Chatte mit anderen Teilnehmern deines Netzwerks!")
+
+CC = input("Willst du einen Server starten? Y/N: ").lower()
+
+def serv():
+    SERVER_HOST = "0.0.0.0"
+    SERVER_PORT = int(input("Auf welchen Port verbinden?: ")) 
+    separator_token = "<SEP>"
+
+    client_sockets = set()
+    s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind((SERVER_HOST, SERVER_PORT))
+    s.listen(5)
+    print(f"[*] Erstelle {SERVER_HOST}:{SERVER_PORT}")
+    print("Dein Server läuft auf der IP",socket.gethostbyname(socket.gethostname()),"und dem Port",SERVER_PORT)
+    print("Warte auf Verbindung mit Clients.")
+    def listen_for_client(cs):
+        
+        while True:
+            try:
+                msg = cs.recv(1024).decode()
+            except Exception as e:
+                print(f"[!] Error: {e}")
+                client_sockets.remove(cs)
+            else:
+                msg = msg.replace(separator_token, ": ")
+            for client_socket in client_sockets:
+                client_socket.send(msg.encode())
+
+
+    while True:
+        client_socket, client_address = s.accept()
+        print(f"[+] Benutzer verbunden.")
+        client_sockets.add(client_socket)
+        t = Thread(target=listen_for_client, args=(client_socket,))
+        t.daemon = True
+        t.start()
+
+    for cs in client_sockets:
+        cs.close()
+    s.close()
+
+def client():
+    print("Willkommen im CheatChat Client. Verbinde dich mit einem Server und leg direkt los!")
+
+    SERVER_HOST = input("Wie ist die IP des Servers?: ")
+    SERVER_PORT = int(input("Mit welchem Port verbinden?: "))
+    separator_token = "<SEP>" 
+    s = socket.socket()
+    print(f"[*] Verbinde mit {SERVER_HOST}:{SERVER_PORT}...")
+    s.connect((SERVER_HOST, SERVER_PORT))
+    print("[+] Verbunden.")
+    name = input("Wähle deinen Alias: ")
+
+    def listen_for_messages():
+        while True:
+            message = s.recv(1024).decode()
+            print("\n" + message)
+
+    t = Thread(target=listen_for_messages)
+    t.daemon = True
+    t.start()
+
+    while True:
+        to_send =  input()
+        if to_send.lower() == 'exit':
+            break
+        date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S') 
+        to_send = f"[{date_now}] {name}{separator_token}{to_send}"
+        s.send(to_send.encode())
+
+    s.close()
+while (CC !="y" and CC!="n"):
+    CC = input("Willst du einen Server starten? Y/N: ").lower()
+if (CC == "y"):
+    serv()
+elif(CC=="n"):
+    print("Dann viel Spaß im Chat!")
+    client()
+    
